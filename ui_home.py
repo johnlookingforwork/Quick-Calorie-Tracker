@@ -13,23 +13,26 @@ def render():
     carbs_goal = int(db.get_setting("carbs_goal"))
     fat_goal = int(db.get_setting("fat_goal"))
 
-    # Header with settings gear
-    col_title, col_gear = st.columns([6, 1])
-    with col_title:
-        st.header("Today")
-    with col_gear:
-        if st.button("⚙️", key="settings_btn", help="Settings"):
-            st.session_state.page = "settings"
-            st.rerun()
+    st.header("Today")
 
-    # --- Big Number ---
+    # --- Big Number: Only Remaining ---
     net_calories = summary["calories"] - summary["burned"]
     remaining = cal_goal - net_calories
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Eaten", f"{summary['calories']:.0f} kcal")
-    c2.metric("Burned", f"{summary['burned']:.0f} kcal")
-    c3.metric("Remaining", f"{remaining:.0f} kcal", delta=None)
+    if remaining >= 0:
+        color = "#4ECDC4"
+        label = "remaining"
+    else:
+        color = "#FF6B6B"
+        label = "over goal"
+
+    st.markdown(
+        f'<div style="text-align:center;margin:0.5rem 0 0.8rem">'
+        f'<div style="font-size:3rem;font-weight:700;color:{color};line-height:1">{abs(remaining):.0f}</div>'
+        f'<div style="font-size:0.9rem;color:#999">{label}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
     # --- 7-day Streak ---
     streak = db.get_streak(today)
@@ -37,40 +40,51 @@ def render():
 
     # --- Macro Donut Chart ---
     st.subheader("Macros")
-    fig = go.Figure()
 
-    # Actual values
-    fig.add_trace(go.Pie(
-        labels=["Protein", "Carbs", "Fat"],
-        values=[summary["protein"], summary["carbs"], summary["fat"]],
-        hole=0.6,
-        marker_colors=["#FF6B6B", "#4ECDC4", "#FFE66D"],
-        textinfo="label+value",
-        texttemplate="%{label}<br>%{value:.0f}g",
-        domain={"x": [0, 0.48]},
-    ))
+    protein_val = summary["protein"]
+    carbs_val = summary["carbs"]
+    fat_val = summary["fat"]
+    total_macros = protein_val + carbs_val + fat_val
 
-    fig.update_layout(
-        showlegend=False,
-        height=280,
-        margin=dict(t=10, b=10, l=10, r=10),
-        annotations=[
-            dict(text=f"{net_calories:.0f}<br>kcal", x=0.24, y=0.5, font_size=16, showarrow=False),
-        ],
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    if total_macros > 0:
+        fig = go.Figure(data=[go.Pie(
+            labels=["Protein", "Carbs", "Fat"],
+            values=[protein_val, carbs_val, fat_val],
+            hole=0.65,
+            marker=dict(colors=["#FF6B6B", "#4ECDC4", "#FFE66D"]),
+            textinfo="label+value",
+            texttemplate="%{label}<br>%{value:.0f}g",
+            textposition="outside",
+            textfont_size=12,
+            hovertemplate="%{label}: %{value:.0f}g<extra></extra>",
+            sort=False,
+        )])
+        fig.update_layout(
+            showlegend=False,
+            height=240,
+            margin=dict(t=20, b=20, l=20, r=20),
+            annotations=[dict(
+                text=f"<b>{net_calories:.0f}</b><br>kcal",
+                x=0.5, y=0.5,
+                font_size=15,
+                showarrow=False,
+            )],
+        )
+        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    else:
+        st.caption("Log food to see your macro breakdown")
 
     # Macro progress bars
     mc1, mc2, mc3 = st.columns(3)
     with mc1:
-        st.caption(f"Protein: {summary['protein']:.0f} / {protein_goal}g")
-        st.progress(min(summary["protein"] / protein_goal, 1.0) if protein_goal > 0 else 0)
+        st.caption(f"Protein: {protein_val:.0f}/{protein_goal}g")
+        st.progress(min(protein_val / protein_goal, 1.0) if protein_goal > 0 else 0)
     with mc2:
-        st.caption(f"Carbs: {summary['carbs']:.0f} / {carbs_goal}g")
-        st.progress(min(summary["carbs"] / carbs_goal, 1.0) if carbs_goal > 0 else 0)
+        st.caption(f"Carbs: {carbs_val:.0f}/{carbs_goal}g")
+        st.progress(min(carbs_val / carbs_goal, 1.0) if carbs_goal > 0 else 0)
     with mc3:
-        st.caption(f"Fat: {summary['fat']:.0f} / {fat_goal}g")
-        st.progress(min(summary["fat"] / fat_goal, 1.0) if fat_goal > 0 else 0)
+        st.caption(f"Fat: {fat_val:.0f}/{fat_goal}g")
+        st.progress(min(fat_val / fat_goal, 1.0) if fat_goal > 0 else 0)
 
     st.divider()
 
@@ -112,26 +126,19 @@ def _render_streak(today: str, streak: int):
     circles = []
     for i in range(6, -1, -1):
         day = today_dt - timedelta(days=i)
-        day_str = day.strftime("%Y-%m-%d")
         label = day.strftime("%a")[0]
-        has_entry = (6 - i) < streak if i < 6 else streak > 0
-        # Check the actual day
-        if i == 0:
-            has_entry = streak > 0
-        else:
-            # Check if this specific day is within the streak
-            has_entry = streak > i
+        has_entry = streak > i
 
         color = "#FF6B6B" if has_entry else "#E0E0E0"
         text_color = "white" if has_entry else "#999"
         circles.append(
-            f'<span style="display:inline-block;width:36px;height:36px;line-height:36px;'
+            f'<span style="display:inline-block;width:32px;height:32px;line-height:32px;'
             f'border-radius:50%;background:{color};color:{text_color};text-align:center;'
-            f'margin:0 4px;font-size:14px;font-weight:bold">{label}</span>'
+            f'margin:0 3px;font-size:12px;font-weight:bold">{label}</span>'
         )
 
     st.markdown(
-        f'<div style="text-align:center;margin:8px 0">{"".join(circles)}'
+        f'<div style="text-align:center;margin:4px 0">{"".join(circles)}'
         f'<br><small style="color:gray">{streak} day streak</small></div>',
         unsafe_allow_html=True,
     )
