@@ -53,42 +53,56 @@ def _ai_tab():
 
 def _saved_foods_tab():
     foods = db.get_saved_foods()
-    if not foods:
-        st.info("No saved foods. Add some in Settings!")
-        return
 
-    food_names = [f["name"] for f in foods]
-    selected_name = st.selectbox("Select a saved food", food_names, key="saved_food_select")
-    selected = next(f for f in foods if f["name"] == selected_name)
+    if foods:
+        food_names = [f["name"] for f in foods]
+        selected_name = st.selectbox("Select a saved food", food_names, key="saved_food_select")
+        selected = next(f for f in foods if f["name"] == selected_name)
 
-    servings = st.number_input(
-        f"Number of servings ({selected['serving_size']:.1f} {selected['unit']} each)",
-        min_value=0.25,
-        value=1.0,
-        step=0.25,
-        key="saved_food_servings",
-    )
-
-    multiplier = servings
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Calories", f"{selected['calories'] * multiplier:.0f}")
-    c2.metric("Protein", f"{selected['protein'] * multiplier:.0f}g")
-    c3.metric("Carbs", f"{selected['carbs'] * multiplier:.0f}g")
-    c4.metric("Fat", f"{selected['fat'] * multiplier:.0f}g")
-
-    if st.button("Log Food", type="primary", key="saved_log_btn"):
-        today = datetime.now().strftime("%Y-%m-%d")
-        now = datetime.now().strftime("%H:%M")
-        db.add_food_log(
-            today, now,
-            f"{selected['name']} x{servings:.1f}",
-            selected["calories"] * multiplier,
-            selected["protein"] * multiplier,
-            selected["carbs"] * multiplier,
-            selected["fat"] * multiplier,
-            source="saved",
+        servings = st.number_input(
+            f"Number of servings ({selected['serving_size']:.1f} {selected['unit']} each)",
+            min_value=0.25,
+            value=1.0,
+            step=0.25,
+            key="saved_food_servings",
         )
-        st.rerun()
+
+        multiplier = servings
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Calories", f"{selected['calories'] * multiplier:.0f}")
+        c2.metric("Protein", f"{selected['protein'] * multiplier:.0f}g")
+        c3.metric("Carbs", f"{selected['carbs'] * multiplier:.0f}g")
+        c4.metric("Fat", f"{selected['fat'] * multiplier:.0f}g")
+
+        if st.button("Log Food", type="primary", key="saved_log_btn"):
+            today = datetime.now().strftime("%Y-%m-%d")
+            now = datetime.now().strftime("%H:%M")
+            db.add_food_log(
+                today, now,
+                f"{selected['name']} x{servings:.1f}",
+                selected["calories"] * multiplier,
+                selected["protein"] * multiplier,
+                selected["carbs"] * multiplier,
+                selected["fat"] * multiplier,
+                source="saved",
+            )
+            st.rerun()
+    else:
+        st.info("No saved foods yet. Create one below!")
+
+    # --- Add new saved food inline ---
+    with st.expander("Create New Saved Food"):
+        with st.form("dialog_add_saved_food", clear_on_submit=True):
+            name = st.text_input("Food Name")
+            serving_size = st.number_input("Serving Size", min_value=0.1, value=1.0, step=0.5, key="dlg_sf_ss")
+            unit = st.text_input("Unit", value="serving", key="dlg_sf_unit")
+            calories = st.number_input("Calories (kcal)", min_value=0.0, value=0.0, step=10.0, key="dlg_sf_cal")
+            protein = st.number_input("Protein (g)", min_value=0.0, value=0.0, step=1.0, key="dlg_sf_pro")
+            carbs = st.number_input("Carbs (g)", min_value=0.0, value=0.0, step=1.0, key="dlg_sf_carb")
+            fat = st.number_input("Fat (g)", min_value=0.0, value=0.0, step=1.0, key="dlg_sf_fat")
+            if st.form_submit_button("Save Food", type="primary") and name:
+                db.add_saved_food(name, serving_size, unit, calories, protein, carbs, fat)
+                st.rerun()
 
 
 def _workout_tab():
