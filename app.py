@@ -15,19 +15,20 @@ st.set_page_config(
 # Mobile-optimized CSS (iPhone 15: 393×852 logical px)
 st.markdown(
     """<style>
-    [data-testid="stSidebar"] { display: none; }
+    /* Hide sidebar */
+    [data-testid="stSidebar"],
     section[data-testid="stSidebarNav"] { display: none; }
 
     /* Mobile container */
     .block-container {
         padding-top: 2.5rem !important;
-        padding-bottom: 6rem !important;
+        padding-bottom: 1rem !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
         max-width: 430px !important;
     }
 
-    /* Smaller headers */
+    /* Typography */
     h1 { font-size: 1.5rem !important; }
     h2 { font-size: 1.2rem !important; }
     h3 { font-size: 1rem !important; }
@@ -40,88 +41,79 @@ st.markdown(
     /* Reduce vertical gaps */
     [data-testid="stVerticalBlock"] > div { gap: 0.4rem !important; }
 
-    /* Compact buttons */
+    /* Compact buttons globally */
     .stButton > button {
         padding: 0.3rem 0.5rem !important;
         font-size: 0.85rem !important;
     }
 
-    /* ---- Bottom nav bar ---- */
-    .st-key-nav_bar {
-        position: fixed !important;
-        bottom: 0; left: 0; right: 0;
-        background: #fff;
-        border-top: 1px solid #E8E8E8;
-        padding: 0 0 env(safe-area-inset-bottom, 0px) 0;
-        z-index: 9999;
-        display: flex !important;
-        justify-content: center;
-    }
-    /* The columns wrapper inside the nav bar */
-    .st-key-nav_bar [data-testid="stHorizontalBlock"] {
-        max-width: 430px;
-        margin: 0 auto;
-        align-items: center !important;
-        gap: 0 !important;
-    }
-
-    /* Nav button styling — icon stacked on label */
-    .st-key-nav_bar .stButton > button {
+    /* ---- Nav bar buttons ---- */
+    .st-key-nav_home .stButton > button,
+    .st-key-nav_cal .stButton > button,
+    .st-key-nav_set .stButton > button {
         background: none !important;
         border: none !important;
         box-shadow: none !important;
         color: #AAAAAA !important;
-        font-size: 0.65rem !important;
-        padding: 6px 4px 8px !important;
-        line-height: 1.1 !important;
-        width: 100% !important;
+        font-size: 0.7rem !important;
+        padding: 4px 2px 6px !important;
         white-space: pre-line !important;
-        transition: color 0.15s;
+        line-height: 1.2 !important;
     }
-    .st-key-nav_bar .stButton > button:hover,
-    .st-key-nav_bar .stButton > button:focus {
+    .st-key-nav_home .stButton > button:hover,
+    .st-key-nav_cal .stButton > button:hover,
+    .st-key-nav_set .stButton > button:hover {
         color: #FF6B6B !important;
         background: none !important;
     }
 
-    /* Active page highlight */
-    .st-key-nav_bar .st-key-nav_home.nav-active .stButton > button,
-    .st-key-nav_bar .st-key-nav_cal.nav-active .stButton > button,
-    .st-key-nav_bar .st-key-nav_set.nav-active .stButton > button {
+    /* Active nav highlight */
+    .st-key-nav_home.active .stButton > button,
+    .st-key-nav_cal.active .stButton > button,
+    .st-key-nav_set.active .stButton > button {
         color: #FF6B6B !important;
         font-weight: 600 !important;
     }
 
-    /* FAB — the center + button */
-    .st-key-nav_bar .st-key-nav_log .stButton > button {
+    /* FAB style for the + button */
+    .st-key-nav_log .stButton > button {
         background: #FF6B6B !important;
-        color: #fff !important;
+        color: white !important;
+        border: none !important;
         border-radius: 50% !important;
-        width: 52px !important;
-        height: 52px !important;
-        font-size: 1.6rem !important;
+        width: 48px !important;
+        height: 48px !important;
+        min-width: 48px !important;
+        max-width: 48px !important;
+        font-size: 1.5rem !important;
         font-weight: 300 !important;
         padding: 0 !important;
-        line-height: 52px !important;
-        box-shadow: 0 2px 10px rgba(255,107,107,0.4) !important;
-        margin: 0 auto !important;
-        position: relative;
-        top: -8px;
+        line-height: 1 !important;
+        box-shadow: 0 2px 8px rgba(255,107,107,0.35) !important;
         display: flex !important;
-        align-items: center;
-        justify-content: center;
+        align-items: center !important;
+        justify-content: center !important;
+        margin: -8px auto 0 !important;
     }
-    .st-key-nav_bar .st-key-nav_log .stButton > button:hover {
-        transform: scale(1.08);
-        box-shadow: 0 4px 16px rgba(255,107,107,0.5) !important;
-        background: #FF6B6B !important;
+    .st-key-nav_log .stButton > button:hover {
+        background: #e55a5a !important;
+        color: white !important;
+        box-shadow: 0 4px 14px rgba(255,107,107,0.5) !important;
     }
-    .st-key-nav_bar .st-key-nav_log .stButton > button:active {
-        transform: scale(0.95);
+    .st-key-nav_log .stButton > button p {
+        font-size: 1.5rem !important;
+        line-height: 1 !important;
     }
 
-    /* Hide the divider right before nav */
-    .st-key-nav_bar hr { display: none !important; }
+    /* Nav row: top border, less gap */
+    .st-key-nav_row {
+        border-top: 1px solid #E8E8E8;
+        padding-top: 4px;
+        margin-top: 1rem;
+    }
+    .st-key-nav_row [data-testid="stHorizontalBlock"] {
+        align-items: center !important;
+    }
     </style>""",
     unsafe_allow_html=True,
 )
@@ -144,20 +136,18 @@ elif page == "settings":
     ui_settings.render()
 
 # --- Bottom Nav Bar ---
-# Apply active class via JS after render
-active = st.session_state.page
-active_key_map = {"home": "nav_home", "calendar": "nav_cal", "settings": "nav_set"}
-active_key = active_key_map.get(active, "")
-if active_key:
+# Inject active class on the current page's nav container
+active_map = {"home": "nav_home", "calendar": "nav_cal", "settings": "nav_set"}
+active_cls = active_map.get(st.session_state.page, "")
+if active_cls:
     st.markdown(
-        f"""<script>
-        const el = document.querySelector('.st-key-{active_key}');
-        if (el) el.classList.add('nav-active');
-        </script>""",
+        f"<style>.st-key-{active_cls} {{ }} .st-key-{active_cls} {{ }}"
+        f"</style>"
+        f"<script>document.querySelector('.st-key-{active_cls}')?.classList.add('active')</script>",
         unsafe_allow_html=True,
     )
 
-with st.container(key="nav_bar"):
+with st.container(key="nav_row"):
     c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
 
     with c1:
