@@ -79,7 +79,7 @@ def render():
         st.info("No saved foods yet. Add one above!")
     else:
         for food in foods:
-            with st.expander(f"{food['name']} — {food['calories']:.0f} kcal per {food['serving_size']:.1f} {food['unit']}"):
+            with st.expander(f"{food['name']} — {food['calories']:g} kcal per {food['serving_size']:g} {food['unit']}"):
                 with st.form(f"edit_food_{food['id']}", clear_on_submit=False):
                     name = st.text_input("Name", value=food["name"], key=f"ef_name_{food['id']}")
                     c1, c2 = st.columns(2)

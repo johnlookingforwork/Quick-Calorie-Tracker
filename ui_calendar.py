@@ -4,6 +4,10 @@ import streamlit as st
 import db
 
 
+def _fmt(n: float) -> str:
+    return f"{n:g}"
+
+
 def render():
     st.header("Calendar")
 
@@ -16,10 +20,10 @@ def render():
     net = summary["calories"] - summary["burned"]
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Eaten", f"{summary['calories']:.0f}")
-    c2.metric("Burned", f"{summary['burned']:.0f}")
-    c3.metric("Net", f"{net:.0f}")
-    c4.metric("Goal", f"{cal_goal}")
+    c1.metric("Eaten", _fmt(summary['calories']))
+    c2.metric("Burned", _fmt(summary['burned']))
+    c3.metric("Net", _fmt(net))
+    c4.metric("Goal", _fmt(cal_goal))
 
     st.divider()
 
@@ -36,11 +40,11 @@ def render():
                 col_info, col_del = st.columns([5, 1])
                 with col_info:
                     st.markdown(
-                        f"**{entry['name']}** — {entry['calories']:.0f} kcal "
+                        f"**{entry['name']}** — {_fmt(entry['calories'])} kcal "
                         f"<small style='color:gray'>({entry['time']})</small>",
                         unsafe_allow_html=True,
                     )
-                    st.caption(f"P: {entry['protein']:.0f}g  C: {entry['carbs']:.0f}g  F: {entry['fat']:.0f}g")
+                    st.caption(f"P: {_fmt(entry['protein'])}g  C: {_fmt(entry['carbs'])}g  F: {_fmt(entry['fat'])}g")
                 with col_del:
                     if st.button("🗑️", key=f"cal_del_food_{entry['id']}", help="Delete"):
                         db.delete_food_log(entry["id"])
@@ -51,7 +55,7 @@ def render():
             for entry in workout_entries:
                 col_info, col_del = st.columns([5, 1])
                 with col_info:
-                    st.markdown(f"🏋️ **{entry['name']}** — -{entry['calories_burned']:.0f} kcal")
+                    st.markdown(f"🏋️ **{entry['name']}** — -{_fmt(entry['calories_burned'])} kcal")
                 with col_del:
                     if st.button("🗑️", key=f"cal_del_workout_{entry['id']}", help="Delete"):
                         db.delete_workout(entry["id"])

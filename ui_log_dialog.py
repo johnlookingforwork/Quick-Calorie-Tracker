@@ -5,6 +5,10 @@ import db
 import ai
 
 
+def _fmt(n: float) -> str:
+    return f"{n:g}"
+
+
 @st.dialog("Log Entry", width="large")
 def show():
     tab_ai, tab_saved, tab_workout = st.tabs(["AI Log", "Saved Foods", "Workout"])
@@ -38,10 +42,10 @@ def _ai_tab():
         est = st.session_state["ai_estimate"]
         st.subheader(est["name"])
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Calories", f"{est['calories']:.0f}")
-        c2.metric("Protein", f"{est['protein']:.0f}g")
-        c3.metric("Carbs", f"{est['carbs']:.0f}g")
-        c4.metric("Fat", f"{est['fat']:.0f}g")
+        c1.metric("Calories", _fmt(est['calories']))
+        c2.metric("Protein", f"{_fmt(est['protein'])}g")
+        c3.metric("Carbs", f"{_fmt(est['carbs'])}g")
+        c4.metric("Fat", f"{_fmt(est['fat'])}g")
 
         if st.button("Confirm & Log", type="primary", key="ai_confirm_btn"):
             today = datetime.now().strftime("%Y-%m-%d")
@@ -60,7 +64,7 @@ def _saved_foods_tab():
         selected = next(f for f in foods if f["name"] == selected_name)
 
         servings = st.number_input(
-            f"Number of servings ({selected['serving_size']:.1f} {selected['unit']} each)",
+            f"Number of servings ({_fmt(selected['serving_size'])} {selected['unit']} each)",
             min_value=0.25,
             value=1.0,
             step=0.25,
@@ -69,17 +73,17 @@ def _saved_foods_tab():
 
         multiplier = servings
         c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Calories", f"{selected['calories'] * multiplier:.0f}")
-        c2.metric("Protein", f"{selected['protein'] * multiplier:.0f}g")
-        c3.metric("Carbs", f"{selected['carbs'] * multiplier:.0f}g")
-        c4.metric("Fat", f"{selected['fat'] * multiplier:.0f}g")
+        c1.metric("Calories", _fmt(selected['calories'] * multiplier))
+        c2.metric("Protein", f"{_fmt(selected['protein'] * multiplier)}g")
+        c3.metric("Carbs", f"{_fmt(selected['carbs'] * multiplier)}g")
+        c4.metric("Fat", f"{_fmt(selected['fat'] * multiplier)}g")
 
         if st.button("Log Food", type="primary", key="saved_log_btn"):
             today = datetime.now().strftime("%Y-%m-%d")
             now = datetime.now().strftime("%H:%M")
             db.add_food_log(
                 today, now,
-                f"{selected['name']} x{servings:.1f}",
+                f"{selected['name']} x{_fmt(servings)}",
                 selected["calories"] * multiplier,
                 selected["protein"] * multiplier,
                 selected["carbs"] * multiplier,
