@@ -37,6 +37,11 @@ st.markdown(
 
     [data-testid="stVerticalBlock"] > div { gap: 0.4rem !important; }
 
+    /* Force columns to stay horizontal on narrow screens */
+    [data-testid="stHorizontalBlock"] {
+        flex-wrap: nowrap !important;
+    }
+
     .stButton > button {
         padding: 0.3rem 0.5rem !important;
         font-size: 0.85rem !important;
