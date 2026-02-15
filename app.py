@@ -37,14 +37,22 @@ st.markdown(
 
     [data-testid="stVerticalBlock"] > div { gap: 0.4rem !important; }
 
-    /* Force columns to stay horizontal on narrow screens */
-    [data-testid="stHorizontalBlock"] {
-        flex-wrap: nowrap !important;
-    }
-
     .stButton > button {
         padding: 0.3rem 0.5rem !important;
         font-size: 0.85rem !important;
+    }
+
+    /* Big Log button */
+    .st-key-log_btn .stButton > button {
+        font-size: 1.1rem !important;
+        padding: 0.7rem 1rem !important;
+        border-radius: 12px !important;
+    }
+
+    /* Pill-style segmented nav */
+    .st-key-nav_pills [data-baseweb="segmented-control"] {
+        background: #F5F5F5;
+        border-radius: 10px;
     }
     </style>""",
     unsafe_allow_html=True,
@@ -56,6 +64,30 @@ db.init_db()
 if "page" not in st.session_state:
     st.session_state.page = "home"
 
+# --- Log Button (always visible, top priority) ---
+with st.container(key="log_btn"):
+    if st.button("➕ Log Food or Workout", use_container_width=True, type="primary", key="btn_log"):
+        ui_log_dialog.show()
+
+# --- Page Nav (pill toggle) ---
+page_options = {"🏠 Home": "home", "📅 History": "calendar", "⚙️ Settings": "settings"}
+current_label = next(k for k, v in page_options.items() if v == st.session_state.page)
+
+with st.container(key="nav_pills"):
+    selected = st.segmented_control(
+        "nav",
+        options=list(page_options.keys()),
+        default=current_label,
+        label_visibility="collapsed",
+        key="nav_select",
+    )
+
+if selected and page_options.get(selected) != st.session_state.page:
+    st.session_state.page = page_options[selected]
+    st.rerun()
+
+st.divider()
+
 # --- Page Router ---
 page = st.session_state.page
 
@@ -65,23 +97,3 @@ elif page == "calendar":
     ui_calendar.render()
 elif page == "settings":
     ui_settings.render()
-
-# --- Bottom Nav ---
-st.divider()
-c1, c2, c3, c4 = st.columns(4)
-
-with c1:
-    if st.button("🏠 Home", use_container_width=True, key="nav_home"):
-        st.session_state.page = "home"
-        st.rerun()
-with c2:
-    if st.button("📅 History", use_container_width=True, key="nav_cal"):
-        st.session_state.page = "calendar"
-        st.rerun()
-with c3:
-    if st.button("➕ Log", use_container_width=True, key="nav_log", type="primary"):
-        ui_log_dialog.show()
-with c4:
-    if st.button("⚙️ Settings", use_container_width=True, key="nav_set"):
-        st.session_state.page = "settings"
-        st.rerun()
