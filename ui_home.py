@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta
 
 import streamlit as st
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 import db
 
 
@@ -11,103 +9,77 @@ def _fmt(n: float) -> str:
     return f"{n:g}"
 
 
+def _pct(val: float, goal: float) -> float:
+    """Percentage clamped to 0-100."""
+    if goal <= 0:
+        return 0
+    return min(val / goal * 100, 100)
+
+
 def render():
-    today = datetime.now().strftime("%Y-%m-%d")
+    today_dt = datetime.now()
+    today = today_dt.strftime("%Y-%m-%d")
     summary = db.get_daily_summary(today)
     cal_goal = int(db.get_setting("daily_calorie_goal"))
     protein_goal = int(db.get_setting("protein_goal"))
     carbs_goal = int(db.get_setting("carbs_goal"))
     fat_goal = int(db.get_setting("fat_goal"))
 
-    st.header("Today")
-
-    # --- Big Number: Only Remaining ---
     net_calories = summary["calories"] - summary["burned"]
     remaining = cal_goal - net_calories
-
-    if remaining >= 0:
-        color = "#4ECDC4"
-        label = "remaining"
-    else:
-        color = "#FF6B6B"
-        label = "over goal"
-
-    st.markdown(
-        f'<div style="text-align:center;margin:0.5rem 0 0.8rem">'
-        f'<div style="font-size:3rem;font-weight:700;color:{color};line-height:1">{_fmt(abs(remaining))}</div>'
-        f'<div style="font-size:0.9rem;color:#999">{label}</div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-
-    # --- 7-day Streak ---
-    streak = db.get_streak(today)
-    _render_streak(today, streak)
-
-    # --- 3 Macro Donut Charts ---
-    st.subheader("Macros")
 
     protein_val = summary["protein"]
     carbs_val = summary["carbs"]
     fat_val = summary["fat"]
 
-    macros = [
-        ("Protein", protein_val, protein_goal, "#FF6B6B"),
-        ("Carbs", carbs_val, carbs_goal, "#4ECDC4"),
-        ("Fat", fat_val, fat_goal, "#FFE66D"),
-    ]
+    protein_left = max(protein_goal - protein_val, 0)
+    carbs_left = max(carbs_goal - carbs_val, 0)
+    fat_left = max(fat_goal - fat_val, 0)
 
-    fig = make_subplots(
-        rows=1, cols=3,
-        specs=[[{"type": "pie"}, {"type": "pie"}, {"type": "pie"}]],
-    )
+    # --- Week day strip ---
+    _render_week_strip(today_dt)
 
-    for i, (name, val, goal, color) in enumerate(macros, 1):
-        remainder = max(goal - val, 0)
-        fig.add_trace(go.Pie(
-            labels=[name, ""],
-            values=[val, remainder],
-            hole=0.7,
-            marker=dict(colors=[color, "#F0F0F0"]),
-            textinfo="none",
-            hovertemplate=f"{name}: {_fmt(val)}g / {_fmt(goal)}g<extra></extra>",
-            sort=False,
-        ), row=1, col=i)
+    # --- Summary card (Cal AI style) ---
+    cal_pct = _pct(net_calories, cal_goal)
+    p_pct = _pct(protein_val, protein_goal)
+    c_pct = _pct(carbs_val, carbs_goal)
+    f_pct = _pct(fat_val, fat_goal)
 
-    fig.update_layout(
-        showlegend=False,
-        height=160,
-        margin=dict(t=5, b=5, l=5, r=5),
-        annotations=[
-            dict(text=f"<b>{_fmt(macros[0][1])}</b><br><span style='font-size:9px'>/{_fmt(macros[0][2])}g</span>",
-                 x=0.11, y=0.5, font_size=13, showarrow=False),
-            dict(text=f"<b>{_fmt(macros[1][1])}</b><br><span style='font-size:9px'>/{_fmt(macros[1][2])}g</span>",
-                 x=0.5, y=0.5, font_size=13, showarrow=False),
-            dict(text=f"<b>{_fmt(macros[2][1])}</b><br><span style='font-size:9px'>/{_fmt(macros[2][2])}g</span>",
-                 x=0.89, y=0.5, font_size=13, showarrow=False),
-        ],
-    )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    cal_color = "#222" if remaining >= 0 else "#FF6B6B"
 
-    # Labels below donuts
-    st.markdown(
-        '<div style="display:flex;justify-content:space-around;text-align:center;margin-top:-8px">'
-        f'<span style="color:#FF6B6B;font-size:0.75rem;font-weight:600">Protein</span>'
-        f'<span style="color:#4ECDC4;font-size:0.75rem;font-weight:600">Carbs</span>'
-        f'<span style="color:#C8B400;font-size:0.75rem;font-weight:600">Fat</span>'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f"""
+    <div style="background:#F7F7F7;border-radius:20px;padding:24px 20px 20px;margin:8px 0 12px">
+        <!-- Calorie ring + number -->
+        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:18px">
+            <div style="position:relative;width:64px;height:64px">
+                <svg viewBox="0 0 36 36" style="width:64px;height:64px;transform:rotate(-90deg)">
+                    <circle cx="18" cy="18" r="14" fill="none" stroke="#E8E8E8" stroke-width="3.5"/>
+                    <circle cx="18" cy="18" r="14" fill="none" stroke="{cal_color}" stroke-width="3.5"
+                            stroke-dasharray="{cal_pct * 0.88:.1f} 88" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div style="text-align:left">
+                <div style="font-size:2.4rem;font-weight:700;color:{cal_color};line-height:1">{_fmt(abs(remaining))}</div>
+                <div style="font-size:0.8rem;color:#999">Calories {'left' if remaining >= 0 else 'over'}</div>
+            </div>
+        </div>
 
-    st.divider()
+        <!-- 3 macro mini-rings -->
+        <div style="display:flex;justify-content:space-around;text-align:center">
+            {_macro_ring("Protein", protein_left, protein_goal, p_pct, "#FF6B6B")}
+            {_macro_ring("Carbs", carbs_left, carbs_goal, c_pct, "#4ECDC4")}
+            {_macro_ring("Fat", fat_left, fat_goal, f_pct, "#FFD93D")}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # --- Today's Log ---
-    st.subheader("Today's Log")
+    st.subheader("Recently logged")
     food_entries = db.get_food_log(today)
     workout_entries = db.get_workouts(today)
 
     if not food_entries and not workout_entries:
-        st.info("No entries yet. Tap + to log your first meal!")
+        st.caption("Nothing logged yet today.")
     else:
         for entry in food_entries:
             col_info, col_del = st.columns([5, 1])
@@ -133,25 +105,50 @@ def render():
                     st.rerun()
 
 
-def _render_streak(today: str, streak: int):
-    """Render 7-day streak circles."""
-    today_dt = datetime.fromisoformat(today)
-    circles = []
-    for i in range(6, -1, -1):
-        day = today_dt - timedelta(days=i)
-        label = day.strftime("%a")[0]
-        has_entry = streak > i
+def _macro_ring(label: str, left: float, goal: float, pct: float, color: str) -> str:
+    """Return HTML for a small macro ring with value below."""
+    return f"""
+    <div style="display:flex;flex-direction:column;align-items:center">
+        <div style="position:relative;width:44px;height:44px">
+            <svg viewBox="0 0 36 36" style="width:44px;height:44px;transform:rotate(-90deg)">
+                <circle cx="18" cy="18" r="14" fill="none" stroke="#E8E8E8" stroke-width="4"/>
+                <circle cx="18" cy="18" r="14" fill="none" stroke="{color}" stroke-width="4"
+                        stroke-dasharray="{pct * 0.88:.1f} 88" stroke-linecap="round"/>
+            </svg>
+        </div>
+        <div style="font-size:0.85rem;font-weight:600;margin-top:4px">{_fmt(left)}g</div>
+        <div style="font-size:0.65rem;color:#999">{label} left</div>
+    </div>
+    """
 
-        color = "#FF6B6B" if has_entry else "#E0E0E0"
-        text_color = "white" if has_entry else "#999"
-        circles.append(
-            f'<span style="display:inline-block;width:32px;height:32px;line-height:32px;'
-            f'border-radius:50%;background:{color};color:{text_color};text-align:center;'
-            f'margin:0 3px;font-size:12px;font-weight:bold">{label}</span>'
-        )
+
+def _render_week_strip(today_dt: datetime):
+    """Render a Cal AI-style week day strip with today highlighted."""
+    start = today_dt - timedelta(days=today_dt.weekday() + 1)  # Sunday
+    days = []
+    for i in range(7):
+        day = start + timedelta(days=i)
+        letter = day.strftime("%a")[0]
+        date_num = day.day
+        is_today = day.date() == today_dt.date()
+
+        if is_today:
+            days.append(
+                f'<div style="display:flex;flex-direction:column;align-items:center">'
+                f'<span style="font-size:0.65rem;color:#999;margin-bottom:2px">{letter}</span>'
+                f'<span style="display:inline-flex;align-items:center;justify-content:center;'
+                f'width:30px;height:30px;border-radius:50%;background:#222;color:#fff;'
+                f'font-size:0.8rem;font-weight:600">{date_num}</span></div>'
+            )
+        else:
+            days.append(
+                f'<div style="display:flex;flex-direction:column;align-items:center">'
+                f'<span style="font-size:0.65rem;color:#999;margin-bottom:2px">{letter}</span>'
+                f'<span style="font-size:0.8rem;color:#666;height:30px;line-height:30px">{date_num}</span></div>'
+            )
 
     st.markdown(
-        f'<div style="text-align:center;margin:4px 0">{"".join(circles)}'
-        f'<br><small style="color:gray">{streak} day streak</small></div>',
+        f'<div style="display:flex;justify-content:space-around;padding:4px 0 0">'
+        f'{"".join(days)}</div>',
         unsafe_allow_html=True,
     )
