@@ -9,21 +9,31 @@ def _fmt(n: float) -> str:
     return f"{n:g}"
 
 
+def _get_log_date() -> str:
+    """Return the date to log to — selected date or today."""
+    return st.session_state.get("selected_date", datetime.now().strftime("%Y-%m-%d"))
+
+
 @st.dialog("Log Entry", width="large")
 def show():
+    log_date = _get_log_date()
+    today = datetime.now().strftime("%Y-%m-%d")
+    if log_date != today:
+        st.caption(f"Logging to: {datetime.strptime(log_date, '%Y-%m-%d').strftime('%a, %b %d')}")
+
     tab_ai, tab_saved, tab_workout = st.tabs(["AI Log", "Saved Foods", "Workout"])
 
     with tab_ai:
-        _ai_tab()
+        _ai_tab(log_date)
 
     with tab_saved:
-        _saved_foods_tab()
+        _saved_foods_tab(log_date)
 
     with tab_workout:
-        _workout_tab()
+        _workout_tab(log_date)
 
 
-def _ai_tab():
+def _ai_tab(log_date: str):
     description = st.text_area("Describe what you ate", placeholder="e.g. 2 eggs, toast with butter, orange juice")
 
     if st.button("Estimate", type="primary", key="ai_estimate_btn"):
@@ -48,14 +58,13 @@ def _ai_tab():
         c4.metric("Fat", f"{_fmt(est['fat'])}g")
 
         if st.button("Confirm & Log", type="primary", key="ai_confirm_btn"):
-            today = datetime.now().strftime("%Y-%m-%d")
             now = datetime.now().strftime("%H:%M")
-            db.add_food_log(today, now, est["name"], est["calories"], est["protein"], est["carbs"], est["fat"], source="ai")
+            db.add_food_log(log_date, now, est["name"], est["calories"], est["protein"], est["carbs"], est["fat"], source="ai")
             del st.session_state["ai_estimate"]
             st.rerun()
 
 
-def _saved_foods_tab():
+def _saved_foods_tab(log_date: str):
     foods = db.get_saved_foods()
 
     if foods:
@@ -79,10 +88,9 @@ def _saved_foods_tab():
         c4.metric("Fat", f"{_fmt(selected['fat'] * multiplier)}g")
 
         if st.button("Log Food", type="primary", key="saved_log_btn"):
-            today = datetime.now().strftime("%Y-%m-%d")
             now = datetime.now().strftime("%H:%M")
             db.add_food_log(
-                today, now,
+                log_date, now,
                 f"{selected['name']} x{_fmt(servings)}",
                 selected["calories"] * multiplier,
                 selected["protein"] * multiplier,
@@ -109,12 +117,11 @@ def _saved_foods_tab():
                 st.rerun()
 
 
-def _workout_tab():
+def _workout_tab(log_date: str):
     with st.form("workout_form", clear_on_submit=True):
         name = st.text_input("Exercise name", placeholder="e.g. Running, Weight training")
         calories_burned = st.number_input("Calories burned", min_value=0.0, value=0.0, step=25.0)
         submitted = st.form_submit_button("Log Workout", type="primary")
         if submitted and name:
-            today = datetime.now().strftime("%Y-%m-%d")
-            db.add_workout(today, name, calories_burned)
+            db.add_workout(log_date, name, calories_burned)
             st.rerun()

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import streamlit as st
 import db
 
-NUM_DAYS = 14
+VISIBLE_DAYS = 7
 
 
 def _fmt(n: float) -> str:
@@ -29,23 +29,21 @@ def _svg_ring(pct: float, color: str, size: int, stroke: float) -> str:
 
 
 def _date_circle_color(net_cals: float | None, goal: int) -> str:
-    """Return border/ring color based on calorie goal progress.
+    """Return border color based on calorie progress.
 
-    None = no data (gray donut outline)
-    >= 100% goal met = green
-    >= 75% almost met = orange
-    < 75% = red
+    None/0 = no data (gray)
+    met goal (net >= goal) = red (over)
+    >= 75% = orange (almost)
+    > 0 but < 75% = green (on track)
     """
-    if net_cals is None:
+    if net_cals is None or net_cals == 0:
         return "#E0E0E0"
     pct = net_cals / goal if goal > 0 else 0
     if pct >= 1.0:
-        return "#FF6B6B"  # over goal — red
+        return "#FF6B6B"
     if pct >= 0.75:
-        return "#FFB347"  # almost — orange
-    if pct > 0:
-        return "#4ECDC4"  # under goal, some data — green/teal
-    return "#E0E0E0"  # zero
+        return "#FFB347"
+    return "#4ECDC4"
 
 
 def render():
@@ -60,16 +58,37 @@ def render():
     if "selected_date" not in st.session_state:
         st.session_state.selected_date = today
 
-    # --- Date strip: last NUM_DAYS days ---
-    strip_dates = [today_dt - timedelta(days=NUM_DAYS - 1 - i) for i in range(NUM_DAYS)]
+    sel_date = st.session_state.selected_date
+    sel_dt = datetime.strptime(sel_date, "%Y-%m-%d")
+
+    # --- Determine visible 7-day window ---
+    # Default window: ends on today (shows last 7 days)
+    # If selected date falls outside, shift the window to include it
+    default_end = today_dt
+    default_start = default_end - timedelta(days=VISIBLE_DAYS - 1)
+
+    if sel_dt.date() < default_start.date():
+        # Selected date is before visible window — shift window back
+        window_end = sel_dt + timedelta(days=VISIBLE_DAYS - 1)
+        # Don't go past today
+        if window_end.date() > today_dt.date():
+            window_end = today_dt
+        window_start = window_end - timedelta(days=VISIBLE_DAYS - 1)
+    elif sel_dt.date() > default_end.date():
+        # Shouldn't happen (future), but handle it
+        window_start = sel_dt
+        window_end = sel_dt + timedelta(days=VISIBLE_DAYS - 1)
+    else:
+        window_start = default_start
+        window_end = default_end
+
+    strip_dates = [window_start + timedelta(days=i) for i in range(VISIBLE_DAYS)]
     strip_strs = [d.strftime("%Y-%m-%d") for d in strip_dates]
 
-    # Get calorie data for all dates in one query
+    # Fetch calorie data for visible range
     net_map = db.get_net_calories_range(strip_strs[0], strip_strs[-1])
 
-    sel_date = st.session_state.selected_date
-
-    # Build scrollable circle strip
+    # Build date strip HTML
     circles = []
     for d in strip_dates:
         d_str = d.strftime("%Y-%m-%d")
@@ -80,18 +99,16 @@ def render():
         ring_color = _date_circle_color(net, cal_goal)
 
         if is_sel:
-            # Selected: solid dark background
             circles.append(
-                f'<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">'
+                f'<div style="display:flex;flex-direction:column;align-items:center;flex:1">'
                 f'<span style="font-size:0.6rem;color:#999;margin-bottom:2px">{letter}</span>'
                 f'<span style="display:inline-flex;align-items:center;justify-content:center;'
                 f'width:32px;height:32px;border-radius:50%;background:#222;color:#fff;'
                 f'font-size:0.75rem;font-weight:600">{num}</span></div>'
             )
-        elif net is not None:
-            # Has data: colored ring around number
+        elif net is not None and net > 0:
             circles.append(
-                f'<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">'
+                f'<div style="display:flex;flex-direction:column;align-items:center;flex:1">'
                 f'<span style="font-size:0.6rem;color:#999;margin-bottom:2px">{letter}</span>'
                 f'<span style="display:inline-flex;align-items:center;justify-content:center;'
                 f'width:32px;height:32px;border-radius:50%;'
@@ -99,9 +116,8 @@ def render():
                 f'font-size:0.75rem;color:#444;font-weight:500">{num}</span></div>'
             )
         else:
-            # No data: plain number, faint donut outline
             circles.append(
-                f'<div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">'
+                f'<div style="display:flex;flex-direction:column;align-items:center;flex:1">'
                 f'<span style="font-size:0.6rem;color:#999;margin-bottom:2px">{letter}</span>'
                 f'<span style="display:inline-flex;align-items:center;justify-content:center;'
                 f'width:32px;height:32px;border-radius:50%;'
@@ -110,13 +126,16 @@ def render():
             )
 
     st.markdown(
-        '<div style="display:flex;gap:6px;overflow-x:auto;padding:4px 0;'
-        '-webkit-overflow-scrolling:touch;scrollbar-width:none">'
-        f'{"".join(circles)}</div>',
+        f'<div style="display:flex;justify-content:space-around;padding:4px 0">{"".join(circles)}</div>',
         unsafe_allow_html=True,
     )
 
-    # Date picker (compact select)
+    # Date picker (compact select) — includes more dates for navigation
+    all_dates = [today_dt - timedelta(days=i) for i in range(30)]
+    all_dates.reverse()
+    all_strs = [d.strftime("%Y-%m-%d") for d in all_dates]
+    all_labels = [d.strftime("%a, %b %d") for d in all_dates]
+
     st.markdown(
         '<style>'
         '.st-key-date_sel {margin-top:-4px;}'
@@ -126,11 +145,10 @@ def render():
         unsafe_allow_html=True,
     )
     with st.container(key="date_sel"):
-        day_labels = [f"{d.strftime('%a, %b %d')}" for d in strip_dates]
-        sel_idx = strip_strs.index(sel_date) if sel_date in strip_strs else len(strip_strs) - 1
-        picked = st.selectbox("Date", day_labels, index=sel_idx, label_visibility="collapsed", key="date_picker")
+        sel_idx = all_strs.index(sel_date) if sel_date in all_strs else len(all_strs) - 1
+        picked = st.selectbox("Date", all_labels, index=sel_idx, label_visibility="collapsed", key="date_picker")
         if picked:
-            new_date = strip_strs[day_labels.index(picked)]
+            new_date = all_strs[all_labels.index(picked)]
             if new_date != sel_date:
                 st.session_state.selected_date = new_date
                 st.rerun()
@@ -190,8 +208,7 @@ def render():
     if sel_date == today:
         st.subheader("Recently logged")
     else:
-        sel_dt = datetime.strptime(sel_date, "%Y-%m-%d")
-        st.subheader(f"{sel_dt.strftime('%A, %b %d')}")
+        st.subheader(sel_dt.strftime("%A, %b %d"))
 
     food_entries = db.get_food_log(sel_date)
     workout_entries = db.get_workouts(sel_date)
