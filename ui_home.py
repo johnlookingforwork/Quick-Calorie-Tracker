@@ -32,18 +32,18 @@ def _date_circle_color(net_cals: float | None, goal: int) -> str:
     """Return border color based on calorie progress.
 
     None/0 = no data (gray)
-    met goal (net >= goal) = red (over)
-    >= 75% = orange (almost)
-    > 0 but < 75% = green (on track)
+    >= 100% of goal = green (met goal)
+    >= 75% = orange (almost there)
+    < 75% = red (needs more)
     """
     if net_cals is None or net_cals == 0:
         return "#E0E0E0"
     pct = net_cals / goal if goal > 0 else 0
     if pct >= 1.0:
-        return "#FF6B6B"
+        return "#4ECDC4"
     if pct >= 0.75:
         return "#FFB347"
-    return "#4ECDC4"
+    return "#FF6B6B"
 
 
 def render():
