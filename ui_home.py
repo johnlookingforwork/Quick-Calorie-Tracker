@@ -38,24 +38,53 @@ def render():
     # --- Clickable week day strip ---
     week_start = today_dt - timedelta(days=(today_dt.weekday() + 1) % 7)  # Sunday
     week_dates = [week_start + timedelta(days=i) for i in range(7)]
-    date_labels = {f"{d.strftime('%a')[0]}  {d.day}": d.strftime("%Y-%m-%d") for d in week_dates}
-    today_label = next(k for k, v in date_labels.items() if v == today)
+    date_options = [d.strftime("%Y-%m-%d") for d in week_dates]
 
     if "selected_date" not in st.session_state:
         st.session_state.selected_date = today
 
-    selected_label = st.segmented_control(
-        "week",
-        options=list(date_labels.keys()),
-        default=next((k for k, v in date_labels.items() if v == st.session_state.selected_date), today_label),
-        label_visibility="collapsed",
-        key="week_picker",
+    sel_date = st.session_state.selected_date
+
+    # Build circle strip HTML
+    circles = []
+    for d in week_dates:
+        d_str = d.strftime("%Y-%m-%d")
+        letter = d.strftime("%a")[0]
+        num = d.day
+        is_sel = d_str == sel_date
+        if is_sel:
+            circles.append(
+                f'<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer" data-date="{d_str}">'
+                f'<span style="font-size:0.65rem;color:#999;margin-bottom:2px">{letter}</span>'
+                f'<span style="display:inline-flex;align-items:center;justify-content:center;'
+                f'width:32px;height:32px;border-radius:50%;background:#222;color:#fff;'
+                f'font-size:0.8rem;font-weight:600">{num}</span></div>'
+            )
+        else:
+            circles.append(
+                f'<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer" data-date="{d_str}">'
+                f'<span style="font-size:0.65rem;color:#999;margin-bottom:2px">{letter}</span>'
+                f'<span style="display:inline-flex;align-items:center;justify-content:center;'
+                f'width:32px;height:32px;border-radius:50%;'
+                f'font-size:0.8rem;color:#666">{num}</span></div>'
+            )
+
+    st.markdown(
+        f'<div style="display:flex;justify-content:space-around;padding:4px 0">{"".join(circles)}</div>',
+        unsafe_allow_html=True,
     )
 
-    if selected_label:
-        st.session_state.selected_date = date_labels[selected_label]
-
-    sel_date = st.session_state.selected_date
+    # Hidden select for actual date interaction
+    st.markdown('<style>.st-key-date_sel {margin-top:-8px;} .st-key-date_sel label {display:none !important;} .st-key-date_sel [data-baseweb="select"] {max-height:28px;min-height:28px;font-size:0.7rem;} .st-key-date_sel [data-baseweb="select"] > div {padding:2px 8px;min-height:28px;}</style>', unsafe_allow_html=True)
+    with st.container(key="date_sel"):
+        day_labels = [f"{d.strftime('%a')} {d.day}" for d in week_dates]
+        sel_idx = date_options.index(sel_date) if sel_date in date_options else date_options.index(today)
+        picked = st.selectbox("Date", day_labels, index=sel_idx, label_visibility="collapsed", key="date_picker")
+        if picked:
+            new_date = date_options[day_labels.index(picked)]
+            if new_date != sel_date:
+                st.session_state.selected_date = new_date
+                st.rerun()
     summary = db.get_daily_summary(sel_date)
 
     net_calories = summary["calories"] - summary["burned"]
