@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import streamlit as st
 import db
 import ui_home
@@ -63,6 +65,8 @@ db.init_db()
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
+if "selected_date" not in st.session_state:
+    st.session_state.selected_date = datetime.now().strftime("%Y-%m-%d")
 
 # --- Log Button (always visible, top priority) ---
 with st.container(key="log_btn"):
