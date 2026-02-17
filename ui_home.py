@@ -16,14 +16,47 @@ def _pct(val: float, goal: float) -> float:
     return min(val / goal * 100, 100)
 
 
+def _svg_ring(pct: float, color: str, size: int, stroke: float) -> str:
+    """Return an SVG donut ring."""
+    return (
+        f'<svg viewBox="0 0 36 36" width="{size}" height="{size}" style="transform:rotate(-90deg)">'
+        f'<circle cx="18" cy="18" r="14" fill="none" stroke="#E8E8E8" stroke-width="{stroke}"/>'
+        f'<circle cx="18" cy="18" r="14" fill="none" stroke="{color}" stroke-width="{stroke}" '
+        f'stroke-dasharray="{pct * 0.88:.1f} 88" stroke-linecap="round"/></svg>'
+    )
+
+
 def render():
     today_dt = datetime.now()
     today = today_dt.strftime("%Y-%m-%d")
-    summary = db.get_daily_summary(today)
+
     cal_goal = int(db.get_setting("daily_calorie_goal"))
     protein_goal = int(db.get_setting("protein_goal"))
     carbs_goal = int(db.get_setting("carbs_goal"))
     fat_goal = int(db.get_setting("fat_goal"))
+
+    # --- Clickable week day strip ---
+    week_start = today_dt - timedelta(days=(today_dt.weekday() + 1) % 7)  # Sunday
+    week_dates = [week_start + timedelta(days=i) for i in range(7)]
+    date_labels = {f"{d.strftime('%a')[0]}  {d.day}": d.strftime("%Y-%m-%d") for d in week_dates}
+    today_label = next(k for k, v in date_labels.items() if v == today)
+
+    if "selected_date" not in st.session_state:
+        st.session_state.selected_date = today
+
+    selected_label = st.segmented_control(
+        "week",
+        options=list(date_labels.keys()),
+        default=next((k for k, v in date_labels.items() if v == st.session_state.selected_date), today_label),
+        label_visibility="collapsed",
+        key="week_picker",
+    )
+
+    if selected_label:
+        st.session_state.selected_date = date_labels[selected_label]
+
+    sel_date = st.session_state.selected_date
+    summary = db.get_daily_summary(sel_date)
 
     net_calories = summary["calories"] - summary["burned"]
     remaining = cal_goal - net_calories
@@ -36,10 +69,6 @@ def render():
     carbs_left = max(carbs_goal - carbs_val, 0)
     fat_left = max(fat_goal - fat_val, 0)
 
-    # --- Week day strip ---
-    _render_week_strip(today_dt)
-
-    # --- Summary card (Cal AI style) ---
     cal_pct = _pct(net_calories, cal_goal)
     p_pct = _pct(protein_val, protein_goal)
     c_pct = _pct(carbs_val, carbs_goal)
@@ -47,39 +76,55 @@ def render():
 
     cal_color = "#222" if remaining >= 0 else "#FF6B6B"
 
-    st.markdown(f"""
-    <div style="background:#F7F7F7;border-radius:20px;padding:24px 20px 20px;margin:8px 0 12px">
-        <!-- Calorie ring + number -->
-        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:18px">
-            <div style="position:relative;width:64px;height:64px">
-                <svg viewBox="0 0 36 36" style="width:64px;height:64px;transform:rotate(-90deg)">
-                    <circle cx="18" cy="18" r="14" fill="none" stroke="#E8E8E8" stroke-width="3.5"/>
-                    <circle cx="18" cy="18" r="14" fill="none" stroke="{cal_color}" stroke-width="3.5"
-                            stroke-dasharray="{cal_pct * 0.88:.1f} 88" stroke-linecap="round"/>
-                </svg>
-            </div>
-            <div style="text-align:left">
-                <div style="font-size:2.4rem;font-weight:700;color:{cal_color};line-height:1">{_fmt(abs(remaining))}</div>
-                <div style="font-size:0.8rem;color:#999">Calories {'left' if remaining >= 0 else 'over'}</div>
-            </div>
-        </div>
+    # --- Summary card ---
+    cal_ring = _svg_ring(cal_pct, cal_color, 64, 3.5)
+    p_ring = _svg_ring(p_pct, "#FF6B6B", 44, 4)
+    c_ring = _svg_ring(c_pct, "#4ECDC4", 44, 4)
+    f_ring = _svg_ring(f_pct, "#FFD93D", 44, 4)
 
-        <!-- 3 macro mini-rings -->
-        <div style="display:flex;justify-content:space-around;text-align:center">
-            {_macro_ring("Protein", protein_left, protein_goal, p_pct, "#FF6B6B")}
-            {_macro_ring("Carbs", carbs_left, carbs_goal, c_pct, "#4ECDC4")}
-            {_macro_ring("Fat", fat_left, fat_goal, f_pct, "#FFD93D")}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    card_html = (
+        '<div style="background:#F7F7F7;border-radius:20px;padding:24px 20px 20px;margin:4px 0 12px">'
+        # Calorie row
+        '<div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:18px">'
+        f'<div>{cal_ring}</div>'
+        '<div style="text-align:left">'
+        f'<div style="font-size:2.4rem;font-weight:700;color:{cal_color};line-height:1">{_fmt(abs(remaining))}</div>'
+        f'<div style="font-size:0.8rem;color:#999">Calories {"left" if remaining >= 0 else "over"}</div>'
+        '</div></div>'
+        # Macro row
+        '<div style="display:flex;justify-content:space-around;text-align:center">'
+        # Protein
+        f'<div style="display:flex;flex-direction:column;align-items:center">'
+        f'{p_ring}'
+        f'<div style="font-size:0.85rem;font-weight:600;margin-top:4px">{_fmt(protein_left)}g</div>'
+        f'<div style="font-size:0.65rem;color:#999">Protein left</div></div>'
+        # Carbs
+        f'<div style="display:flex;flex-direction:column;align-items:center">'
+        f'{c_ring}'
+        f'<div style="font-size:0.85rem;font-weight:600;margin-top:4px">{_fmt(carbs_left)}g</div>'
+        f'<div style="font-size:0.65rem;color:#999">Carbs left</div></div>'
+        # Fat
+        f'<div style="display:flex;flex-direction:column;align-items:center">'
+        f'{f_ring}'
+        f'<div style="font-size:0.85rem;font-weight:600;margin-top:4px">{_fmt(fat_left)}g</div>'
+        f'<div style="font-size:0.65rem;color:#999">Fat left</div></div>'
+        '</div></div>'
+    )
 
-    # --- Today's Log ---
-    st.subheader("Recently logged")
-    food_entries = db.get_food_log(today)
-    workout_entries = db.get_workouts(today)
+    st.markdown(card_html, unsafe_allow_html=True)
+
+    # --- Day's Log ---
+    if sel_date == today:
+        st.subheader("Recently logged")
+    else:
+        sel_dt = datetime.strptime(sel_date, "%Y-%m-%d")
+        st.subheader(f"{sel_dt.strftime('%A, %b %d')}")
+
+    food_entries = db.get_food_log(sel_date)
+    workout_entries = db.get_workouts(sel_date)
 
     if not food_entries and not workout_entries:
-        st.caption("Nothing logged yet today.")
+        st.caption("Nothing logged yet." if sel_date == today else "No entries for this day.")
     else:
         for entry in food_entries:
             col_info, col_del = st.columns([5, 1])
@@ -103,52 +148,3 @@ def render():
                 if st.button("🗑️", key=f"del_workout_{entry['id']}", help="Delete"):
                     db.delete_workout(entry["id"])
                     st.rerun()
-
-
-def _macro_ring(label: str, left: float, goal: float, pct: float, color: str) -> str:
-    """Return HTML for a small macro ring with value below."""
-    return f"""
-    <div style="display:flex;flex-direction:column;align-items:center">
-        <div style="position:relative;width:44px;height:44px">
-            <svg viewBox="0 0 36 36" style="width:44px;height:44px;transform:rotate(-90deg)">
-                <circle cx="18" cy="18" r="14" fill="none" stroke="#E8E8E8" stroke-width="4"/>
-                <circle cx="18" cy="18" r="14" fill="none" stroke="{color}" stroke-width="4"
-                        stroke-dasharray="{pct * 0.88:.1f} 88" stroke-linecap="round"/>
-            </svg>
-        </div>
-        <div style="font-size:0.85rem;font-weight:600;margin-top:4px">{_fmt(left)}g</div>
-        <div style="font-size:0.65rem;color:#999">{label} left</div>
-    </div>
-    """
-
-
-def _render_week_strip(today_dt: datetime):
-    """Render a Cal AI-style week day strip with today highlighted."""
-    start = today_dt - timedelta(days=today_dt.weekday() + 1)  # Sunday
-    days = []
-    for i in range(7):
-        day = start + timedelta(days=i)
-        letter = day.strftime("%a")[0]
-        date_num = day.day
-        is_today = day.date() == today_dt.date()
-
-        if is_today:
-            days.append(
-                f'<div style="display:flex;flex-direction:column;align-items:center">'
-                f'<span style="font-size:0.65rem;color:#999;margin-bottom:2px">{letter}</span>'
-                f'<span style="display:inline-flex;align-items:center;justify-content:center;'
-                f'width:30px;height:30px;border-radius:50%;background:#222;color:#fff;'
-                f'font-size:0.8rem;font-weight:600">{date_num}</span></div>'
-            )
-        else:
-            days.append(
-                f'<div style="display:flex;flex-direction:column;align-items:center">'
-                f'<span style="font-size:0.65rem;color:#999;margin-bottom:2px">{letter}</span>'
-                f'<span style="font-size:0.8rem;color:#666;height:30px;line-height:30px">{date_num}</span></div>'
-            )
-
-    st.markdown(
-        f'<div style="display:flex;justify-content:space-around;padding:4px 0 0">'
-        f'{"".join(days)}</div>',
-        unsafe_allow_html=True,
-    )
