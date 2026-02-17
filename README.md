@@ -1,5 +1,9 @@
 # Quick Calorie Tracker
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://quick-calorie-tracker-ravfpsjxqxqrxqygtfbfae.streamlit.app/)
+
+**[Live Demo](https://quick-calorie-tracker-ravfpsjxqxqrxqygtfbfae.streamlit.app/)**
+
 A high-velocity, AI-powered calorie and macro tracking application built with Streamlit. Designed for users who want to log meals in seconds using natural language or a personalized library of saved foods.
 
 ## Key Features
