@@ -168,6 +168,25 @@ def get_daily_summary(date: str) -> dict:
     }
 
 
+def get_net_calories_range(start_date: str, end_date: str) -> dict[str, float]:
+    """Return {date_str: net_calories} for each date that has any log entries."""
+    conn = get_connection()
+    rows = conn.execute(
+        """SELECT date, COALESCE(SUM(calories),0) as cals
+           FROM food_log WHERE date BETWEEN ? AND ? GROUP BY date""",
+        (start_date, end_date),
+    ).fetchall()
+    food_map = {r["date"]: r["cals"] for r in rows}
+    rows = conn.execute(
+        """SELECT date, COALESCE(SUM(calories_burned),0) as burned
+           FROM workout_log WHERE date BETWEEN ? AND ? GROUP BY date""",
+        (start_date, end_date),
+    ).fetchall()
+    burn_map = {r["date"]: r["burned"] for r in rows}
+    all_dates = set(food_map) | set(burn_map)
+    return {d: food_map.get(d, 0) - burn_map.get(d, 0) for d in all_dates}
+
+
 def get_date_range_summary(start_date: str, end_date: str) -> list[dict]:
     conn = get_connection()
     rows = conn.execute(
