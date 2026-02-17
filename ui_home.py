@@ -130,28 +130,17 @@ def render():
         unsafe_allow_html=True,
     )
 
-    # Date picker (compact select) — includes more dates for navigation
-    all_dates = [today_dt - timedelta(days=i) for i in range(30)]
-    all_dates.reverse()
-    all_strs = [d.strftime("%Y-%m-%d") for d in all_dates]
-    all_labels = [d.strftime("%a, %b %d") for d in all_dates]
-
-    st.markdown(
-        '<style>'
-        '.st-key-date_sel {margin-top:-4px;}'
-        '.st-key-date_sel [data-baseweb="select"] {max-height:30px;min-height:30px;font-size:0.75rem;}'
-        '.st-key-date_sel [data-baseweb="select"] > div {padding:2px 8px;min-height:30px;}'
-        '</style>',
-        unsafe_allow_html=True,
+    # Date picker — calendar popup
+    picked_date = st.date_input(
+        "Date",
+        value=sel_dt.date(),
+        max_value=today_dt.date(),
+        label_visibility="collapsed",
+        key="date_picker",
     )
-    with st.container(key="date_sel"):
-        sel_idx = all_strs.index(sel_date) if sel_date in all_strs else len(all_strs) - 1
-        picked = st.selectbox("Date", all_labels, index=sel_idx, label_visibility="collapsed", key="date_picker")
-        if picked:
-            new_date = all_strs[all_labels.index(picked)]
-            if new_date != sel_date:
-                st.session_state.selected_date = new_date
-                st.rerun()
+    if picked_date and picked_date.strftime("%Y-%m-%d") != sel_date:
+        st.session_state.selected_date = picked_date.strftime("%Y-%m-%d")
+        st.rerun()
 
     # --- Summary card ---
     summary = db.get_daily_summary(sel_date)
