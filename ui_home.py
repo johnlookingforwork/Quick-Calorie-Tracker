@@ -99,12 +99,17 @@ def render():
         ring_color = _date_circle_color(net, cal_goal)
 
         if is_sel:
+            # Selected: dark fill + colored bottom dot indicator
+            dot = ""
+            if net is not None and net > 0:
+                dot = (f'<span style="display:block;width:6px;height:6px;border-radius:50%;'
+                       f'background:{ring_color};margin:3px auto 0"></span>')
             circles.append(
                 f'<div style="display:flex;flex-direction:column;align-items:center;flex:1">'
                 f'<span style="font-size:0.6rem;color:#999;margin-bottom:2px">{letter}</span>'
                 f'<span style="display:inline-flex;align-items:center;justify-content:center;'
                 f'width:32px;height:32px;border-radius:50%;background:#222;color:#fff;'
-                f'font-size:0.75rem;font-weight:600">{num}</span></div>'
+                f'font-size:0.75rem;font-weight:600">{num}</span>{dot}</div>'
             )
         elif net is not None and net > 0:
             circles.append(
