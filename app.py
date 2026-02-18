@@ -5,6 +5,7 @@ import db
 import ui_home
 import ui_calendar
 import ui_settings
+import ui_saved_foods
 import ui_log_dialog
 
 st.set_page_config(
@@ -74,7 +75,7 @@ with st.container(key="log_btn"):
         ui_log_dialog.show()
 
 # --- Page Nav (pill toggle) ---
-page_options = {"🏠 Home": "home", "📅 History": "calendar", "⚙️ Settings": "settings"}
+page_options = {"🏠 Home": "home", "📅 History": "calendar", "🍎 Foods": "saved_foods", "⚙️ Settings": "settings"}
 current_label = next(k for k, v in page_options.items() if v == st.session_state.page)
 
 with st.container(key="nav_pills"):
@@ -99,5 +100,7 @@ if page == "home":
     ui_home.render()
 elif page == "calendar":
     ui_calendar.render()
+elif page == "saved_foods":
+    ui_saved_foods.render()
 elif page == "settings":
     ui_settings.render()

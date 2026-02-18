@@ -108,20 +108,26 @@ def _saved_foods_tab(log_date: str):
             name = st.text_input("Food Name")
             serving_size = st.number_input("Serving Size", min_value=0.1, value=1.0, step=0.5, key="dlg_sf_ss")
             unit = st.text_input("Unit", value="serving", key="dlg_sf_unit")
-            calories = st.number_input("Calories (kcal)", min_value=0.0, value=None, step=10.0, placeholder="0", key="dlg_sf_cal")
-            protein = st.number_input("Protein (g)", min_value=0.0, value=None, step=1.0, placeholder="0", key="dlg_sf_pro")
-            carbs = st.number_input("Carbs (g)", min_value=0.0, value=None, step=1.0, placeholder="0", key="dlg_sf_carb")
-            fat = st.number_input("Fat (g)", min_value=0.0, value=None, step=1.0, placeholder="0", key="dlg_sf_fat")
+            calories = st.text_input("Calories (kcal)", value="", placeholder="0", key="dlg_sf_cal")
+            protein = st.text_input("Protein (g)", value="", placeholder="0", key="dlg_sf_pro")
+            carbs = st.text_input("Carbs (g)", value="", placeholder="0", key="dlg_sf_carb")
+            fat = st.text_input("Fat (g)", value="", placeholder="0", key="dlg_sf_fat")
             if st.form_submit_button("Save Food", type="primary") and name:
-                db.add_saved_food(name, serving_size, unit, calories or 0, protein or 0, carbs or 0, fat or 0)
+                db.add_saved_food(
+                    name, serving_size, unit,
+                    float(calories) if calories else 0,
+                    float(protein) if protein else 0,
+                    float(carbs) if carbs else 0,
+                    float(fat) if fat else 0,
+                )
                 st.rerun()
 
 
 def _workout_tab(log_date: str):
     with st.form("workout_form", clear_on_submit=True):
         name = st.text_input("Exercise name", placeholder="e.g. Running, Weight training")
-        calories_burned = st.number_input("Calories burned", min_value=0.0, value=None, step=25.0, placeholder="0")
+        calories_burned = st.text_input("Calories burned", value="", placeholder="0")
         submitted = st.form_submit_button("Log Workout", type="primary")
         if submitted and name:
-            db.add_workout(log_date, name, calories_burned or 0)
+            db.add_workout(log_date, name, float(calories_burned) if calories_burned else 0)
             st.rerun()
