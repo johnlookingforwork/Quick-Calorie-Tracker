@@ -63,14 +63,14 @@ def render():
             with c1:
                 serving_size = st.number_input("Serving Size", min_value=0.1, value=1.0, step=0.5)
                 unit = st.text_input("Unit", value="serving")
-                calories = st.number_input("Calories (kcal)", min_value=0.0, value=0.0, step=10.0)
+                calories = st.number_input("Calories (kcal)", min_value=0.0, value=None, step=10.0, placeholder="0")
             with c2:
-                protein = st.number_input("Protein (g)", min_value=0.0, value=0.0, step=1.0)
-                carbs = st.number_input("Carbs (g)", min_value=0.0, value=0.0, step=1.0)
-                fat = st.number_input("Fat (g)", min_value=0.0, value=0.0, step=1.0)
+                protein = st.number_input("Protein (g)", min_value=0.0, value=None, step=1.0, placeholder="0")
+                carbs = st.number_input("Carbs (g)", min_value=0.0, value=None, step=1.0, placeholder="0")
+                fat = st.number_input("Fat (g)", min_value=0.0, value=None, step=1.0, placeholder="0")
             submitted = st.form_submit_button("Add Food", type="primary")
             if submitted and name:
-                db.add_saved_food(name, serving_size, unit, calories, protein, carbs, fat)
+                db.add_saved_food(name, serving_size, unit, calories or 0, protein or 0, carbs or 0, fat or 0)
                 st.rerun()
 
     # List saved foods
